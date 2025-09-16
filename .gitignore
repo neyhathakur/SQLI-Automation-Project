@@ -1,0 +1,26 @@
+Python
+
+pycache/
+*.pyc
+*.pyo
+*.pyd
+
+Virtual environment
+
+.venv/
+venv/
+
+Outputs and data
+
+outputs/
+*.log
+
+IDE files
+
+.vscode/
+.DS_Store
+
+Env files
+
+.env
+.env.local
