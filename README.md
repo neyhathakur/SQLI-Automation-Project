@@ -12,14 +12,14 @@ The project is implemented in **Playwright + TypeScript** and covers both **Web 
 ```
 SQLI Automation Project/
 │── playwright-ts/
-│   ├── tests/
-│   │   ├── web_wikipedia.spec.ts     # Exercise 1: Web automation (DuckDuckGo → Wikipedia)
-│   │   ├── api_petstore.spec.ts      # Exercise 2: API handling (Petstore API)
-│   ├── playwright.config.ts          # Playwright configuration
-│   ├── tsconfig.json                 # TypeScript configuration
-│   ├── package.json                  # Dependencies and scripts
-│── outputs/                          # Test results (screenshots, JSON outputs)
-│── README.md                         # Project documentation
+│ ├── tests/
+│ │ ├── web_wikipedia.spec.ts # Exercise 1: Web automation (Google → Wikipedia, fallback DuckDuckGo)
+│ │ ├── api_petstore.spec.ts # Exercise 2: API handling (Petstore API with retries)
+│ ├── playwright.config.ts # Playwright configuration
+│ ├── tsconfig.json # TypeScript configuration
+│ ├── package.json # Dependencies and scripts
+│── outputs/ # Test results (screenshots, JSON outputs)
+│── README.md # Project documentation
 ```
 
 ---
@@ -52,7 +52,8 @@ npx playwright install
 ### Run all tests (web + API)
 
 ```bash
-npx playwright test
+npx playwright test --headed
+
 ```
 
 ### Run a specific test
@@ -69,23 +70,29 @@ API handling test:
 npx playwright test tests/api_petstore.spec.ts
 ```
 
+Open HTML Report:
+
+```bash
+npx playwright show-report
+
+```
 ---
 
 ## Exercises Implemented
 
 ### ✅ Exercise 1: Web Automation
 
-* Opens **DuckDuckGo**.
-* Searches for **“first automatic process in history site\:wikipedia.org”**.
-* Clicks on the **Wikipedia link**.
-* Extracts the **year of the first automatic process**.
+* Searches for “automation” on Google.
+* If Google blocks with captcha/sorry page → automatically falls back to DuckDuckGo.
+* Opens the Wikipedia link from search results..
+* Extracts the first realistic year (1500–2099) from the page.
 * Takes a **screenshot** of the Wikipedia page.
-* Verifies that at least one year is found.
+* Saves results in outputs/.
 
 Output:
 
-* Screenshot saved in `outputs/web_wikipedia.png`.
-
+* outputs/web_wikipedia.png – Screenshot of the Wikipedia page
+* outputs/web_summary.json – JSON summary of the run
 ---
 
 ### ✅ Exercise 2: API Handling (Petstore API)
@@ -98,7 +105,19 @@ Output:
   Example output:
 
   ```json
-  { "Liza": 2, "Jack": 1, "Bret": 1 }
+  {
+  "createStatus": 200,
+  "getStatus": 200,
+  "soldPets": [
+    { "id": 778899445566, "name": "Jack" },
+    { "id": 1052, "name": "doggie" }
+  ],
+  "nameCounts": {
+    "Jack": 1,
+    "doggie": 2
+  }
+}
+
   ```
 * Logs results in console.
 
@@ -109,25 +128,31 @@ Output:
 ### Web Automation
 
 ```
-✅ First automatic process year: 1801
+✅ Wikipedia URL: https://en.wikipedia.org/wiki/Automation
+✅ First automatic process year: 1936
+✅ Screenshot saved: outputs/web_wikipedia.png
+
 ```
 
 ### API Handling
 
 ```
- User data: { username: 'testuser123', ... }
- Sold pets: [{ id: 123, name: 'Liza' }, { id: 124, name: 'Jack' }]
- Pet name counts: { Liza: 2, Jack: 1 }
+POST Response status: 200
+GET Response status: 200
+Sold pets (tuples): [{ id: 123, name: 'Liza' }, { id: 124, name: 'Jack' }]
+Pet name counts: { Liza: 2, Jack: 1 }
+Results saved to outputs/petstore_results.json
+
 ```
 
 ---
 
 ## Tech Stack
 
-* **Playwright** – Web automation framework
-* **TypeScript** – Strongly typed JavaScript
-* **Node.js (npm)** – Dependency management
-* **Swagger Petstore API** – Public API used for testing
+* Playwright – Web automation & API testing
+* TypeScript – Strongly typed JavaScript
+* Node.js (npm) – Dependency management
+* Swagger Petstore API – Public API used for testing
 
 ---
 
