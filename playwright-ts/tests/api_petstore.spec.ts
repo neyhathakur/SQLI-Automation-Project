@@ -1,45 +1,88 @@
+// playwright-ts/tests/api_petstore.spec.ts
 import { test, expect } from "@playwright/test";
+import fs from "fs";
+import path from "path";
+
+const OUTPUT_DIR = path.join(process.cwd(), "outputs");
+const BASE_URL = "https://petstore.swagger.io/v2";
 
 test("Petstore API: create user, fetch user, and analyze sold pets", async ({ request }) => {
-  const username = "testuser123";
+  fs.mkdirSync(OUTPUT_DIR, { recursive: true });
 
-  // 1. Create a new user
-  const createUser = await request.post("https://petstore.swagger.io/v2/user", {
-    data: {
-      id: 1001,
-      username,
-      firstName: "Test",
-      lastName: "User",
-      email: "test@example.com",
-      password: "password123",
-      phone: "1234567890",
-      userStatus: 1,
-    },
-  });
-  expect(createUser.ok()).toBeTruthy();
+  const username = `qa_user_${Date.now()}`;
+  const userPayload = {
+    id: Date.now() % 1000000000,
+    username,
+    firstName: "QA",
+    lastName: "Tester",
+    email: `qa.${Date.now()}@example.com`,
+    password: "TestPass123!",
+    phone: "0000000000",
+    userStatus: 1,
+  };
 
-  // 2. Retrieve the created user
-  const getUser = await request.get(`https://petstore.swagger.io/v2/user/${username}`);
-  expect(getUser.ok()).toBeTruthy();
-  const userData = await getUser.json();
-  console.log("👤 User data:", userData);
+  // 1) Create user
+  const createResp = await request.post(`${BASE_URL}/user`, { data: userPayload });
+  console.log("POST Response status:", createResp.status());
+  const createJson = await createResp.json().catch(() => ({}));
+  console.log("POST Response body:", createJson);
+  expect(createResp.ok()).toBeTruthy();
 
-  // 3. Find pets with status "sold"
-  const soldPets = await request.get("https://petstore.swagger.io/v2/pet/findByStatus?status=sold");
-  expect(soldPets.ok()).toBeTruthy();
-  const pets = await soldPets.json();
-
-  // 4. Collect tuples {id, name}
-  const tuples = pets.map((p: any) => ({ id: p.id, name: p.name }));
-  console.log("🐶 Sold pets:", tuples);
-
-  // 5. Count duplicates by pet name
-  const counts: Record<string, number> = {};
-  for (const pet of tuples) {
-    counts[pet.name] = (counts[pet.name] || 0) + 1;
+  // 2) GET user with retries (Petstore demo can be flaky)
+  let getResp;
+  const maxAttempts = 4;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    getResp = await request.get(`${BASE_URL}/user/${username}`);
+    console.log(`GET attempt ${attempt} status:`, getResp.status());
+    if (getResp.ok()) break;
+    // backoff: wait before retrying
+    await new Promise((r) => setTimeout(r, 500 * attempt));
   }
-  console.log("📊 Pet name counts:", counts);
 
-  // 6. Assert data structures are not empty
-  expect(tuples.length).toBeGreaterThan(0);
+  // If still not ok, fail with a helpful message (or change to warning if you prefer)
+  expect(getResp.ok()).toBeTruthy();
+  const getJson = await getResp.json().catch(() => ({}));
+  console.log("GET Response body:", getJson);
+
+  // 3) Find sold pets
+  const soldResp = await request.get(`${BASE_URL}/pet/findByStatus?status=sold`);
+  console.log("findByStatus status:", soldResp.status());
+  expect(soldResp.ok()).toBeTruthy();
+  const pets = await soldResp.json().catch(() => []);
+  console.log("Raw sold pets count:", Array.isArray(pets) ? pets.length : "not-array");
+
+  // 4) Collect tuples {id, name}
+  const soldPets = Array.isArray(pets) ? pets.map((p: any) => ({ id: p.id, name: p.name ?? "Unnamed" })) : [];
+  console.log("Sold pets (tuples):", soldPets);
+
+  // 5) Count duplicates by name
+  class PetNameCounter {
+    constructor(public petTuples: { id: number; name: string }[]) {}
+    countNames(): Record<string, number> {
+      const counts: Record<string, number> = {};
+      for (const p of this.petTuples) {
+        const name = p.name ?? "Unnamed";
+        counts[name] = (counts[name] || 0) + 1;
+      }
+      return counts;
+    }
+  }
+  const counter = new PetNameCounter(soldPets);
+  const nameCounts = counter.countNames();
+  console.log("Pet name counts:", nameCounts);
+
+  // 6) Persist results to outputs
+  const out = {
+    createStatus: createResp.status(),
+    createJson,
+    getStatus: getResp.status(),
+    getJson,
+    soldPets,
+    nameCounts,
+  };
+  fs.writeFileSync(path.join(OUTPUT_DIR, "petstore_results.json"), JSON.stringify(out, null, 2));
+  console.log("Results saved to outputs/petstore_results.json");
+
+  // 7) Basic assertion to ensure we have some sold pets (optional)
+  expect(soldPets.length).toBeGreaterThan(0);
 });
