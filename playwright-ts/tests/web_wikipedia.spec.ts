@@ -5,61 +5,111 @@ import path from "path";
 
 const OUTPUT_DIR = path.join(process.cwd(), "outputs");
 
-test("DuckDuckGo → Wikipedia: first automatic process", async ({ page }) => {
+test("Web: search 'automation' -> Wikipedia -> extract year + screenshot", async ({ page }) => {
   fs.mkdirSync(OUTPUT_DIR, { recursive: true });
 
-  const query = "first automatic process in history site:wikipedia.org";
+  // Try Google first (required by the task). If blocked, fallback to DuckDuckGo.
+  const googleQuery = "automation";
+  const ddQuery = "automation site:wikipedia.org";
 
-  // 1) Go to DuckDuckGo
-  await page.goto("https://duckduckgo.com", { waitUntil: "domcontentloaded" });
-
-  // 2) Dismiss possible cookie/consent dialogs (multi-lingual)
-  const consentSelectors = [
-    'button:has-text("Accept all")',
-    'button:has-text("I agree")',
-    'button:has-text("Accept")',
-    'button:has-text("Aceptar todo")',
-    'button:has-text("Estoy de acuerdo")',
-  ];
-  for (const sel of consentSelectors) {
-    const btn = page.locator(sel);
-    if (await btn.count()) {
-      try {
-        await btn.first().click({ timeout: 2000 });
-      } catch {
-        // ignore if click fails
+  // Helper: dismiss common consent dialogs / modals
+  const dismissConsent = async () => {
+    const selectors = [
+      'button:has-text("I agree")',
+      'button:has-text("Accept all")',
+      'button:has-text("Accept")',
+      'button:has-text("Aceptar todo")',
+      'button:has-text("Estoy de acuerdo")',
+      '[aria-label="Accept all"]',
+      '[aria-label="Agree"]',
+      '[data-testid="close-button"]'
+    ];
+    for (const s of selectors) {
+      const btn = page.locator(s);
+      if ((await btn.count()) > 0) {
+        try { await btn.first().click({ timeout: 2000 }); } catch { /* ignore */ }
+        break;
       }
-      break;
     }
+  };
+
+  const extractYear = (bodyText: string | null) => {
+    if (!bodyText) return "Not found";
+    const match = bodyText.match(/\b(1[5-9]\d{2}|20\d{2})\b/); // realistic years 1500-2099
+    return match ? match[0] : "Not found";
+  };
+
+  // --- Try Google (preferred) ---
+  try {
+    await page.goto("https://www.google.com/?hl=en", { waitUntil: "domcontentloaded" });
+    await dismissConsent();
+
+    // Search
+    const searchBox = page.locator('input[name="q"], textarea[name="q"]');
+    await searchBox.fill(googleQuery);
+    await searchBox.press("Enter");
+    await page.waitForLoadState("networkidle");
+
+    // Detect Google anti-bot/captcha / sorry page
+    if (page.url().includes("/sorry") || (await page.locator('form#captcha-form').count()) > 0) {
+      throw new Error("Google blocked (captcha/sorry) - falling back");
+    }
+
+    // Locate Wikipedia link
+    const wikiLink = page.locator('a[href*="wikipedia.org"]').first();
+    if ((await wikiLink.count()) === 0) throw new Error("No Wikipedia link found on Google results");
+    await wikiLink.click({ trial: false });
+    await page.waitForLoadState("networkidle");
+  } catch (googleErr) {
+    console.log("Google path failed:", googleErr.message || googleErr);
+    // --- Fallback: DuckDuckGo ---
+    await page.goto("https://duckduckgo.com/", { waitUntil: "domcontentloaded" });
+    await dismissConsent();
+
+    const ddBox = page.locator('input[name="q"], input#search_form_input_homepage, input#searchbox_input');
+    await ddBox.fill(ddQuery);
+    await ddBox.press("Enter");
+    await page.waitForLoadState("networkidle");
+
+    // handle potential overlay/modal (anomaly-modal) that blocks clicks
+    const anomaly = page.locator('[data-testid="anomaly-modal"], .anomaly-modal__mask');
+    if (await anomaly.count() > 0 && await anomaly.isVisible().catch(() => false)) {
+      // try Escape or click close
+      await page.keyboard.press("Escape").catch(() => {});
+      const closeBtn = page.locator('button:has-text("Close"), button[aria-label="Close"]');
+      if ((await closeBtn.count()) > 0) {
+        try { await closeBtn.first().click({ timeout: 2000 }); } catch {}
+      }
+    }
+
+    const wikiLink = page.locator('a[href*="wikipedia.org"]').first();
+    if ((await wikiLink.count()) === 0) {
+      // save debug HTML for investigation
+      const debugFile = path.join(OUTPUT_DIR, "debug_duckduckgo.html");
+      fs.writeFileSync(debugFile, await page.content());
+      throw new Error(`DuckDuckGo: no wikipedia link found; debug saved: ${debugFile}`);
+    }
+    // click first candidate
+    // sometimes link is relative; allow navigation
+    await wikiLink.click();
+    await page.waitForLoadState("networkidle");
   }
 
-  // 3) Fill search box and submit
-  const searchBox = page.locator('input[name="q"], input#search_form_input_homepage, input#searchbox_input');
-  await searchBox.fill(query);
-  await searchBox.press("Enter");
-
-  // 4) Wait for results (network idle) then find ANY wikipedia.org link
-  await page.waitForLoadState("networkidle");
-  const wikiLink = page.locator('a[href*="wikipedia.org"]').first();
-  await wikiLink.waitFor({ state: "visible", timeout: 20000 });
-
-  // 5) Click the link and wait for the wikipedia page to load
-  const href = await wikiLink.getAttribute("href");
-  console.log("Found Wikipedia candidate:", href);
-  await wikiLink.click();
-  await page.waitForLoadState("networkidle");
-
-  // 6) Extract first 4-digit year (realistic range 1500-2099)
-  const bodyText = (await page.textContent("body")) || "";
-  const yearMatch = bodyText.match(/\b(1[5-9]\d{2}|20\d{2})\b/);
-  const firstYear = yearMatch ? yearMatch[0] : "Not found";
-
-  // 7) Screenshot and save summary
+  // Now on Wikipedia (or another page). Extract year and screenshot.
+  await page.waitForSelector("body", { timeout: 15000 });
+  const bodyText = await page.textContent("body");
+  const firstYear = extractYear(bodyText);
   const screenshotPath = path.join(OUTPUT_DIR, "web_wikipedia.png");
   await page.screenshot({ path: screenshotPath, fullPage: true });
-  console.log("Screenshot saved:", screenshotPath);
-  console.log("First automatic process year:", firstYear);
 
-  // 8) Assert we found a year (if this is critical). If flaky, you may change this to a warning instead.
+  const summary = {
+    wikipedia_url: page.url(),
+    first_automatic_process_year: firstYear,
+    screenshot: screenshotPath
+  };
+  fs.writeFileSync(path.join(OUTPUT_DIR, "web_wikipedia_results.json"), JSON.stringify(summary, null, 2));
+  console.log("Web summary:", summary);
+
+  // Optional assert (if you want the test to fail when no year found)
   expect(firstYear).not.toBe("Not found");
 });

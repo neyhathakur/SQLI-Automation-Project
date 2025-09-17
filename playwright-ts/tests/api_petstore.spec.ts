@@ -1,10 +1,12 @@
 // playwright-ts/tests/api_petstore.spec.ts
-import { test, expect } from "@playwright/test";
+import { test, expect, APIResponse } from "@playwright/test";
 import fs from "fs";
 import path from "path";
 
 const OUTPUT_DIR = path.join(process.cwd(), "outputs");
 const BASE_URL = "https://petstore.swagger.io/v2";
+
+type Pet = { id: number; name?: string };
 
 test("Petstore API: create user, fetch user, and analyze sold pets", async ({ request }) => {
   fs.mkdirSync(OUTPUT_DIR, { recursive: true });
@@ -26,43 +28,40 @@ test("Petstore API: create user, fetch user, and analyze sold pets", async ({ re
   console.log("POST Response status:", createResp.status());
   const createJson = await createResp.json().catch(() => ({}));
   console.log("POST Response body:", createJson);
-  expect(createResp.ok()).toBeTruthy();
+  await expect(createResp).toBeOK();
 
   // 2) GET user with retries (Petstore demo can be flaky)
-  let getResp;
+  let getResp: APIResponse | undefined;
   const maxAttempts = 4;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     getResp = await request.get(`${BASE_URL}/user/${username}`);
     console.log(`GET attempt ${attempt} status:`, getResp.status());
     if (getResp.ok()) break;
-    // backoff: wait before retrying
     await new Promise((r) => setTimeout(r, 500 * attempt));
   }
-
-  // If still not ok, fail with a helpful message (or change to warning if you prefer)
-  expect(getResp.ok()).toBeTruthy();
+  if (!getResp) throw new Error("GET never completed");
+  await expect(getResp).toBeOK();
   const getJson = await getResp.json().catch(() => ({}));
   console.log("GET Response body:", getJson);
 
   // 3) Find sold pets
   const soldResp = await request.get(`${BASE_URL}/pet/findByStatus?status=sold`);
   console.log("findByStatus status:", soldResp.status());
-  expect(soldResp.ok()).toBeTruthy();
-  const pets = await soldResp.json().catch(() => []);
+  await expect(soldResp).toBeOK();
+  const pets = await soldResp.json().catch(() => []) as Pet[];
   console.log("Raw sold pets count:", Array.isArray(pets) ? pets.length : "not-array");
 
   // 4) Collect tuples {id, name}
-  const soldPets = Array.isArray(pets) ? pets.map((p: any) => ({ id: p.id, name: p.name ?? "Unnamed" })) : [];
+  const soldPets = Array.isArray(pets) ? pets.map((p) => ({ id: p.id, name: p.name ?? "Unnamed" })) : [];
   console.log("Sold pets (tuples):", soldPets);
 
-  // 5) Count duplicates by name
+  // 5) Count duplicates by name (class)
   class PetNameCounter {
     constructor(public petTuples: { id: number; name: string }[]) {}
     countNames(): Record<string, number> {
       const counts: Record<string, number> = {};
       for (const p of this.petTuples) {
-        const name = p.name ?? "Unnamed";
-        counts[name] = (counts[name] || 0) + 1;
+        counts[p.name] = (counts[p.name] || 0) + 1;
       }
       return counts;
     }
