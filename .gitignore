@@ -13,3 +13,7 @@ blob-report/
 # Temporary / output files
 outputs/*.png
 outputs/*.json
+
+# Ignore test outputs
+playwright-ts/outputs/
+playwright-ts/test-results/
