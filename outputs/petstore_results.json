@@ -1,7 +1,62 @@
 {
-  "id": 123456,
-  "name": "doggie",
-  "photoUrls": [],
-  "tags": [],
-  "status": "available"
+  "create_user_status": 200,
+  "create_user_response": {
+    "code": 200,
+    "type": "unknown",
+    "message": "123456"
+  },
+  "get_user_status": 200,
+  "get_user_response": {
+    "id": 123456,
+    "username": "qa_user",
+    "firstName": "QA",
+    "lastName": "Tester",
+    "email": "qa@example.com",
+    "password": "password123",
+    "phone": "1234567890",
+    "userStatus": 1
+  },
+  "sold_pets": [
+    [
+      435,
+      "doggie"
+    ],
+    [
+      13,
+      "Unnamed"
+    ],
+    [
+      9222968140491042132,
+      "Dogs_upd"
+    ],
+    [
+      9222968140491042145,
+      "Search_sold_Shnv6"
+    ],
+    [
+      7362063502092484036,
+      "dRIj5EAMs7"
+    ],
+    [
+      55714,
+      "grtybc"
+    ],
+    [
+      76342797,
+      "doggie"
+    ],
+    [
+      1,
+      "dog"
+    ]
+  ],
+  "pet_name_counts": {
+    "doggie": 2,
+    "Unnamed": 1,
+    "Dogs_upd": 1,
+    "Search_sold_Shnv6": 1,
+    "dRIj5EAMs7": 1,
+    "grtybc": 1,
+    "dog": 1
+  }
 }

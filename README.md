@@ -1,153 +1,151 @@
 # SQLI Automation Project
 
-This project contains two QA automation exercises:
-
-1. **Web Automation with Wikipedia**  
-   Automates a Wikipedia search for the keyword **"Automation"**, saves a screenshot, and validates results.
-
-2. **API Handling with Petstore API**  
-   Uses the [Swagger Petstore API](https://petstore.swagger.io/) to:
-   - Create a new Pet (POST request).
-   - Retrieve the created Pet (GET request).
-   - Save the API responses into JSON files.
+This project is a QA Automation Qualification Test solution. It demonstrates skills in both **web automation** and **API automation**.
 
 ---
 
-## Project Setup Instructions
+## Project Structure
 
-### 1. Clone the Repository
-```bash
-git clone https://github.com/neyhathakur/SQLI-Automation-Project.git
-cd SQLI-Automation-Project
-````
-
-### 2. Create and Activate Virtual Environment
-
-```bash
-python -m venv .venv
 ```
-
-* **Windows (PowerShell):**
-
-  ```bash
-  .\.venv\Scripts\Activate
-  ```
-* **macOS/Linux:**
-
-  ```bash
-  source .venv/bin/activate
-  ```
-
-### 3. Install Dependencies
-
-```bash
-pip install -r requirements.txt
+SQLI-Automation-Project/
+├── .venv/                              # Virtual environment (ignored in repo)
+├── outputs/                            # Generated screenshots and JSON results
+│   ├── duckduckgo_wikipedia.png
+│   ├── duckduckgo_wikipedia_results.json
+│   ├── petstore_results.json
+│   └── (other example files)
+├── src/
+│   ├── main.py                         # Entry point that runs all tasks
+│   ├── web_duckduckgo_wikipedia.py     # Web automation: DuckDuckGo → Wikipedia
+│   ├── api_user_and_pets.py            # API handling: user + sold pets + counts
+│   └── (optional fallback or helper scripts)
+├── requirements.txt                    # Python dependencies
+└── README.md                           # This documentation
 ```
-
-### 4. Install Playwright Browsers
-
-```bash
-python -m playwright install
-```
-
-## Test Case Summary
-
-### 1. Wikipedia Search Automation
-
-* **Located in:** `src/web_automation.py`
-* **Description:**
-
-  * Opens Wikipedia.
-  * Searches for the keyword **"Automation"**.
-  * Takes a screenshot of the results page.
-  * Saves output as `outputs/wikipedia_automation_search.png`.
 
 ---
 
-### 2. Petstore API Handling
+## Setup Instructions
 
-* **Located in:** `src/api_handling.py`
-* **Description:**
+1. **Clone the repository**
 
-  * Sends a **POST request** to create a new pet (`id=123456, name="doggie"`).
-  * Sends a **GET request** to fetch the created pet.
-  * Saves the JSON response as `outputs/petstore_results.json`.
+   ```bash
+   git clone https://github.com/neyhathakur/SQLI-Automation-Project.git
+   cd SQLI-Automation-Project
+   ```
+
+2. **Create and activate virtual environment**
+
+   Windows (PowerShell):
+   ```powershell
+   python -m venv .venv
+   . .\.venv\Scripts\Activate
+   ```
+
+   macOS / Linux:
+   ```bash
+   python3 -m venv .venv
+   source .venv/bin/activate
+   ```
+
+3. **Install dependencies**
+
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. **Install Playwright browsers**
+
+   ```bash
+   python -m playwright install
+   ```
 
 ---
 
-## ▶️ How to Run Tests
+## ▶ Running the Project
 
-Run **all exercises** (Wikipedia + Petstore API):
+To run both exercises (web + API) in one command:
 
 ```bash
 python src/main.py
 ```
 
-Run **only the Wikipedia test**:
+---
+
+## Exercise 1: Web Automation (DuckDuckGo → Wikipedia)
+
+**What it does:**
+
+- Searches the web using **DuckDuckGo** (because Google blocks automation).
+- Restricts search to `site:wikipedia.org` to find the Wikipedia page for *First automatic process in history*.
+- Extracts the **year** of that first automatic process.
+- Takes a screenshot of the Wikipedia page.
+- Saves results in JSON + screenshot under `outputs/`.
+
+**Output files:**
+
+- `outputs/duckduckgo_wikipedia_results.json`
+- `outputs/duckduckgo_wikipedia.png`
+
+---
+
+## Exercise 2: API Handling with Petstore
+
+**What it does:**
+
+- Uses Swagger Petstore API (`https://petstore.swagger.io/v2`).
+- Creates a user (POST request).
+- Retrieves that user (GET request).
+- Fetches all pets with status=`sold`.
+- Extracts `(id, name)` tuples of sold pets.
+- Counts how many pets share the same name.
+- Saves results in `outputs/`.
+
+**Output file:**
+
+- `outputs/petstore_results.json`
+
+---
+
+## ✅ Example Output
+
+When you run:
 
 ```bash
-python -m src.web_automation
+python src/main.py
 ```
 
-Run **only the Petstore API test**:
-
-```bash
-python -m src.api_handling
-```
-
----
-
-## Folder Structure
+You should see console output similar to:
 
 ```
-SQLI-Automation-Project/
-│── .venv/                     # Virtual environment (ignored in repo)
-│── outputs/                   # Generated results
-│   ├── wikipedia_automation_search.png
-│   └── petstore_results.json
-│── src/                       # Source code
-│   ├── main.py                # Entry point - runs both exercises
-│   ├── web_automation.py      # Wikipedia automation script
-│   └── api_handling.py        # Petstore API automation script
-│── requirements.txt           # Python dependencies
-│── README.md                  # Documentation
+Starting Web Automation with Wikipedia...
+DuckDuckGo → Wikipedia automation completed. Summary:
+{
+  "wikipedia_url": "https://en.wikipedia.org/wiki/Automation",
+  "first_automatic_process_year": "2000",
+  "screenshot": "outputs\\duckduckgo_wikipedia.png",
+  "summary_file": "outputs\\duckduckgo_wikipedia_results.json"
+}
+Wikipedia web automation completed.
+
+Starting API Handling with Petstore API...
+API Handling completed. Results saved to: outputs\petstore_results.json
+Petstore API handling completed.
+
+✅ All tasks finished! Check the outputs folder for results.
 ```
 
 ---
 
-##  Tools and Libraries
+## Notes & Decisions
 
-* [Python 3.9+](https://www.python.org/)
-* [Playwright](https://playwright.dev/python/) – for browser automation
-* [Requests](https://docs.python-requests.org/en/latest/) – for API handling
-* [python-dotenv](https://pypi.org/project/python-dotenv/) – for environment variable management
+- **Locator selection**: Real locators captured using Playwright Codegen / Test-Runner to ensure precision.
+- **Error handling**: If Wikipedia link is not found, script logs error and outputs debug HTML snapshot for later review.
 
 ---
 
-## Example Outputs
+## Tools & Libraries
 
-* **Wikipedia Screenshot:**
-  File: `outputs/wikipedia_automation_search.png`
-
-* **Petstore API JSON:**
-  File: `outputs/petstore_results.json`
-
-  ```json
-  {
-    "id": 123456,
-    "name": "doggie",
-    "photoUrls": [],
-    "tags": [],
-    "status": "available"
-  }
-  ```
-
----
-
-## Notes for Interviewers
-
-1. Follow the setup instructions above to install dependencies.
-2. Run `python src/main.py` to execute both exercises.
-3. Check the `outputs/` folder for results.
-
-```
+- Python 3.9+  
+- Playwright (browser automation)  
+- Requests (API HTTP client)  
